@@ -28,8 +28,8 @@ forge install fabrknt/market-state@v0.1.0
 ```
 
 ```solidity
-import {MarketStateRegistry} from "market-state/src/MarketStateRegistry.sol";
-import {MarketStateCheck} from "market-state/src/MarketStateCheck.sol";
+import {MarketStateRegistry} from "market-state/MarketStateRegistry.sol";
+import {MarketStateCheck} from "market-state/MarketStateCheck.sol";
 
 MarketStateCheck.requireOpen(registry, token, 300); // reverts MarketHalted / MarketStateStale / NotYetResumed
 ```
