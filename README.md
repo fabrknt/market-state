@@ -78,6 +78,8 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
 - Summon (`psyto/summon-stocks`, private for now): backer-funded rounds for tokenized stocks on Base
   Sepolia. Every auction start and fill calls `requireOpen` for the stock, and its tests cover a halted
   stock, a quiet guard and a fill before the resumption time. Pins `v0.1.0`.
+- The private project this was extracted from now depends on `v0.1.0` as well, instead of keeping its
+  own copy.
 
 ## License
 
