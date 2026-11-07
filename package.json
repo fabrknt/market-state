@@ -1,6 +1,6 @@
 {
   "name": "@fabrknt/market-state",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Halt and session state for tokenized stocks: a guard that reads Nasdaq Trader's halts feed, and an onchain registry that readers fail closed on.",
   "license": "Apache-2.0",
   "type": "module",

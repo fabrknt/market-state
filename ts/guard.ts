@@ -6,7 +6,9 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
  * - issuerSync: a missing or paused issuer state halts the token
  * - badPrintBandBps: freeze when venue and reference prices differ by more than this (0 = off)
  * - session: "regular-hours" is open 09:30-16:00 ET on trading days (13:00 on early closes), and closed on
- *   weekends, exchange holidays and years the calendar does not cover; "always" does not close
+ *   weekends, exchange holidays and years the calendar does not cover; "core-hours" is the same but
+ *   also closed in the first 15 and last 25 minutes of the session (09:30-09:45 and 15:35-16:00 ET,
+ *   12:35-13:00 on early closes), when US Limit Up-Limit Down bands are doubled; "always" does not close
  * - maxStateAgeSeconds: the oldest halts feed that still counts as current
  */
 export interface GuardPolicy {
@@ -217,8 +219,8 @@ export function evaluateMarket(s: GuardPolicy, input: MarketInput): MarketState 
       };
     }
   }
-  if (s.market.session === "regular-hours") {
-    const session = regularSession(input.now);
+  if (s.market.session === "regular-hours" || s.market.session === "core-hours") {
+    const session = regularSession(input.now, s.market.session === "core-hours");
     if (!session.open) return { halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: session.detail };
   }
   return { halted: false, reason: MARKET_REASON.NONE, resumeAfter: 0, detail: "open" };
@@ -238,8 +240,15 @@ export const EARLY_CLOSES: ReadonlySet<string> = new Set(["2026-11-27", "2026-12
 /** The calendar covers these years. Outside them every day reads closed, so a stale calendar fails closed. */
 export const CALENDAR_YEARS = { first: 2026, last: 2028 } as const;
 
-/** The regular session at `now`: 09:30-16:00 New York time on trading days, 09:30-13:00 on early closes. */
-export function regularSession(now: number): { open: boolean; detail: string } {
+/** Minutes after the open and before the close in which US Limit Up-Limit Down bands are doubled. */
+export const LULD_DOUBLED_OPEN_MINUTES = 15;
+export const LULD_DOUBLED_CLOSE_MINUTES = 25;
+
+/**
+ * The regular session at `now`: 09:30-16:00 New York time on trading days, 09:30-13:00 on early closes.
+ * With `core`, the doubled-band edges are closed too: 09:45-15:35 (09:45-12:35 on early closes).
+ */
+export function regularSession(now: number, core = false): { open: boolean; detail: string } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     hourCycle: "h23",
@@ -259,6 +268,9 @@ export function regularSession(now: number): { open: boolean; detail: string } {
   if (EXCHANGE_HOLIDAYS.has(day)) return { open: false, detail: `exchange holiday ${day}` };
   const close = EARLY_CLOSES.has(day) ? 780 : 960;
   if (mins < 570 || mins >= close) return { open: false, detail: close === 780 ? "outside 09:30-13:00 ET (early close)" : "outside 09:30-16:00 ET" };
+  if (core && (mins < 570 + LULD_DOUBLED_OPEN_MINUTES || mins >= close - LULD_DOUBLED_CLOSE_MINUTES)) {
+    return { open: false, detail: "LULD bands doubled (first 15 or last 25 minutes of the session)" };
+  }
   return { open: true, detail: close === 780 ? "open, early close 13:00 ET" : "open" };
 }
 

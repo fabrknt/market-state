@@ -133,6 +133,19 @@ describe("guard", () => {
     // 2028 observes no New Year's Day (it falls on a Saturday); Monday 1/3 trades
     expect(inRegularSession(easternToUnix("01/03/2028", "12:00:00"))).toBe(true);
   });
+  it("core-hours sessions also close while LULD bands are doubled", () => {
+    const core = { ...policy, market: { ...policy.market, session: "core-hours" as const } };
+    const at = (d: string, t: string) => evaluateMarket(core, { symbol: "NVDA", now: easternToUnix(d, t), halts: [], ...OK_PX });
+    expect(at("11/09/2026", "09:44:00").reason).toBe(MARKET_REASON.SESSION_CLOSED);
+    expect(at("11/09/2026", "09:45:00").halted).toBe(false);
+    expect(at("11/09/2026", "15:34:00").halted).toBe(false);
+    expect(at("11/09/2026", "15:35:00").detail).toMatch(/LULD bands doubled/);
+    // on an early close the last 25 minutes are 12:35-13:00
+    expect(at("11/27/2026", "12:34:00").halted).toBe(false);
+    expect(at("11/27/2026", "12:35:00").halted).toBe(true);
+    // regular-hours keeps the edges open
+    expect(regularSession(easternToUnix("11/09/2026", "09:31:00")).open).toBe(true);
+  });
   it("a year the calendar does not cover reads closed", () => {
     const mondayNoon2029 = easternToUnix("01/08/2029", "12:00:00");
     expect(regularSession(mondayNoon2029)).toEqual({ open: false, detail: "no exchange calendar for 2029" });

@@ -10,7 +10,8 @@ fills, settles or lends against the stock should stop when the stock does. This 
   (`https://www.nasdaqtrader.com/rss.aspx?feed=tradehalts`, no key) and decides each token's state. It
   covers halts, market-wide circuit breakers, bad prints against a reference price, issuer pauses and
   regular-hours sessions, with NYSE's holidays and 13:00 ET early closes for 2026-2028 (outside those
-  years every day reads closed).
+  years every day reads closed). A `core-hours` session also closes the first 15 and last 25 minutes,
+  when US Limit Up-Limit Down bands are doubled.
 - `MarketStateRegistry.sol`: an updater (the guard) writes that state onchain. `MarketStateCheck.requireOpen`
   reverts when a token is halted, before its resumption time, or when the guard has not confirmed its
   state within `maxStateAge`. A guard that goes quiet therefore stops trading. It does not let trading run
@@ -76,6 +77,8 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
   NYSE Group's 2026-2028 calendar (announced 2025-12-23). A year outside the calendar reads closed, so a
   stale calendar fails closed rather than open. Found while using it in Summon: Thanksgiving (2026-11-26)
   read as open, and 11-27 as open until 16:00.
+- `v0.3.0`: the `core-hours` session (09:45-15:35 ET, 09:45-12:35 on early closes). Summon does not fill
+  while LULD bands are doubled.
 
 ## Used in
 
