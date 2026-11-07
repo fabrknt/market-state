@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { MARKET_REASON, easternToUnix, evaluateMarket, inRegularSession, marketStateFor, parseNasdaqFeed, parseNasdaqHalts, type GuardPolicy } from "../ts/index.js";
+import { MARKET_REASON, easternToUnix, evaluateMarket, inRegularSession, marketStateFor, regularSession, parseNasdaqFeed, parseNasdaqHalts, type GuardPolicy } from "../ts/index.js";
 
 // Halts from the feed, a 10% bad-print band, trading around the clock, feeds up to 5 minutes old.
 const policy: GuardPolicy = {
@@ -110,6 +110,32 @@ describe("guard", () => {
     expect(inRegularSession(saturdayNoonEt)).toBe(false);
     expect(evaluateMarket(rh, { symbol: "NVDA", now: saturdayNoonEt, halts: [], ...OK_PX }).reason).toBe(MARKET_REASON.SESSION_CLOSED);
     expect(evaluateMarket(policy, { symbol: "NVDA", now: saturdayNoonEt, halts: [], ...OK_PX }).halted).toBe(false);
+  });
+  it("regular-hours sessions close on exchange holidays and at 13:00 on early closes", () => {
+    const rh = { ...policy, market: { ...policy.market, session: "regular-hours" as const } };
+    // Thanksgiving 2026: a Thursday, closed all day
+    const thanksgiving = easternToUnix("11/26/2026", "12:00:00");
+    expect(inRegularSession(thanksgiving)).toBe(false);
+    expect(evaluateMarket(rh, { symbol: "NVDA", now: thanksgiving, halts: [], ...OK_PX }).detail).toBe("exchange holiday 2026-11-26");
+    // the day after: open in the morning, closed from 13:00
+    expect(inRegularSession(easternToUnix("11/27/2026", "12:59:00"))).toBe(true);
+    expect(inRegularSession(easternToUnix("11/27/2026", "13:00:00"))).toBe(false);
+    expect(evaluateMarket(rh, { symbol: "NVDA", now: easternToUnix("11/27/2026", "14:00:00"), halts: [], ...OK_PX }).detail).toBe(
+      "outside 09:30-13:00 ET (early close)",
+    );
+    // an ordinary weekday keeps 09:30-16:00
+    expect(inRegularSession(easternToUnix("11/09/2026", "09:29:00"))).toBe(false);
+    expect(inRegularSession(easternToUnix("11/09/2026", "09:30:00"))).toBe(true);
+    expect(inRegularSession(easternToUnix("11/09/2026", "15:59:00"))).toBe(true);
+    expect(inRegularSession(easternToUnix("11/09/2026", "16:00:00"))).toBe(false);
+    // observed holidays: Juneteenth 2027 falls on a Saturday and is observed Friday 6/18
+    expect(inRegularSession(easternToUnix("06/18/2027", "12:00:00"))).toBe(false);
+    // 2028 observes no New Year's Day (it falls on a Saturday); Monday 1/3 trades
+    expect(inRegularSession(easternToUnix("01/03/2028", "12:00:00"))).toBe(true);
+  });
+  it("a year the calendar does not cover reads closed", () => {
+    const mondayNoon2029 = easternToUnix("01/08/2029", "12:00:00");
+    expect(regularSession(mondayNoon2029)).toEqual({ open: false, detail: "no exchange calendar for 2029" });
   });
   it("impossible calendar dates are malformed, not rolled over", () => {
     expect(() => easternToUnix("11/31/2026", "09:30:00")).toThrow(/bad eastern date/);

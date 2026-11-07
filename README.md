@@ -9,7 +9,8 @@ fills, settles or lends against the stock should stop when the stock does. This 
 - `ts/guard.ts`: parses Nasdaq Trader's public trade-halts RSS
   (`https://www.nasdaqtrader.com/rss.aspx?feed=tradehalts`, no key) and decides each token's state. It
   covers halts, market-wide circuit breakers, bad prints against a reference price, issuer pauses and
-  regular-hours sessions.
+  regular-hours sessions, with NYSE's holidays and 13:00 ET early closes for 2026-2028 (outside those
+  years every day reads closed).
 - `MarketStateRegistry.sol`: an updater (the guard) writes that state onchain. `MarketStateCheck.requireOpen`
   reverts when a token is halted, before its resumption time, or when the guard has not confirmed its
   state within `maxStateAge`. A guard that goes quiet therefore stops trading. It does not let trading run
@@ -71,7 +72,10 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
 
 - `v0.1.0`: first release. It was extracted from one of our private projects, where this code went through
   repeated independent reviews. Unaudited.
-- Not done: exchange holidays (`inRegularSession` knows weekdays and 09:30–16:00 ET only).
+- `v0.2.0`: exchange holidays and early closes (`regularSession`, `EXCHANGE_HOLIDAYS`, `EARLY_CLOSES`), from
+  NYSE Group's 2026-2028 calendar (announced 2025-12-23). A year outside the calendar reads closed, so a
+  stale calendar fails closed rather than open. Found while using it in Summon: Thanksgiving (2026-11-26)
+  read as open, and 11-27 as open until 16:00.
 
 ## Used in
 

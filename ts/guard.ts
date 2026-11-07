@@ -5,7 +5,8 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
  * - haltSync: follow primary-exchange halts from the feed
  * - issuerSync: a missing or paused issuer state halts the token
  * - badPrintBandBps: freeze when venue and reference prices differ by more than this (0 = off)
- * - session: "regular-hours" closes outside 09:30-16:00 ET on weekdays; "always" does not
+ * - session: "regular-hours" is open 09:30-16:00 ET on trading days (13:00 on early closes), and closed on
+ *   weekends, exchange holidays and years the calendar does not cover; "always" does not close
  * - maxStateAgeSeconds: the oldest halts feed that still counts as current
  */
 export interface GuardPolicy {
@@ -216,24 +217,54 @@ export function evaluateMarket(s: GuardPolicy, input: MarketInput): MarketState 
       };
     }
   }
-  if (s.market.session === "regular-hours" && !inRegularSession(input.now)) {
-    return { halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: "outside 09:30-16:00 ET" };
+  if (s.market.session === "regular-hours") {
+    const session = regularSession(input.now);
+    if (!session.open) return { halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: session.detail };
   }
   return { halted: false, reason: MARKET_REASON.NONE, resumeAfter: 0, detail: "open" };
 }
 
-/** Weekday 09:30-16:00 New York time. Exchange holidays are not modelled yet. */
-export function inRegularSession(now: number): boolean {
+/**
+ * NYSE Group's holidays and 1:00 p.m. ET early closes, 2026-2028, as announced on 2025-12-23
+ * (ir.theice.com, "NYSE Group Announces 2026, 2027 and 2028 Holiday and Early Closings Calendar").
+ * Nasdaq has kept the same days. Dates are New York calendar days.
+ */
+export const EXCHANGE_HOLIDAYS: ReadonlySet<string> = new Set([
+  "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+  "2027-01-01", "2027-01-18", "2027-02-15", "2027-03-26", "2027-05-31", "2027-06-18", "2027-07-05", "2027-09-06", "2027-11-25", "2027-12-24",
+  "2028-01-17", "2028-02-21", "2028-04-14", "2028-05-29", "2028-06-19", "2028-07-04", "2028-09-04", "2028-11-23", "2028-12-25",
+]);
+export const EARLY_CLOSES: ReadonlySet<string> = new Set(["2026-11-27", "2026-12-24", "2027-11-26", "2028-07-03", "2028-11-24"]);
+/** The calendar covers these years. Outside them every day reads closed, so a stale calendar fails closed. */
+export const CALENDAR_YEARS = { first: 2026, last: 2028 } as const;
+
+/** The regular session at `now`: 09:30-16:00 New York time on trading days, 09:30-13:00 on early closes. */
+export function regularSession(now: number): { open: boolean; detail: string } {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     weekday: "short",
     hour: "2-digit",
     minute: "2-digit",
   }).formatToParts(new Date(now * 1000));
-  const wd = parts.find((p) => p.type === "weekday")?.value;
-  const mins = Number(parts.find((p) => p.type === "hour")?.value) * 60 + Number(parts.find((p) => p.type === "minute")?.value);
-  return wd !== "Sat" && wd !== "Sun" && mins >= 570 && mins < 960;
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const day = `${get("year")}-${get("month")}-${get("day")}`;
+  const year = Number(get("year"));
+  const mins = Number(get("hour")) * 60 + Number(get("minute"));
+  if (year < CALENDAR_YEARS.first || year > CALENDAR_YEARS.last) return { open: false, detail: `no exchange calendar for ${year}` };
+  if (get("weekday") === "Sat" || get("weekday") === "Sun") return { open: false, detail: "weekend" };
+  if (EXCHANGE_HOLIDAYS.has(day)) return { open: false, detail: `exchange holiday ${day}` };
+  const close = EARLY_CLOSES.has(day) ? 780 : 960;
+  if (mins < 570 || mins >= close) return { open: false, detail: close === 780 ? "outside 09:30-13:00 ET (early close)" : "outside 09:30-16:00 ET" };
+  return { open: true, detail: close === 780 ? "open, early close 13:00 ET" : "open" };
+}
+
+/** Whether the regular session is open at `now` (see regularSession). */
+export function inRegularSession(now: number): boolean {
+  return regularSession(now).open;
 }
 
 /**
