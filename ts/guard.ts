@@ -8,7 +8,8 @@ import { XMLParser, XMLValidator } from "fast-xml-parser";
  * - session: "regular-hours" is open 09:30-16:00 ET on trading days (13:00 on early closes), and closed on
  *   weekends, exchange holidays and years the calendar does not cover; "core-hours" is the same but
  *   also closed in the first 15 and last 25 minutes of the session (09:30-09:45 and 15:35-16:00 ET,
- *   12:35-13:00 on early closes), when US Limit Up-Limit Down bands are doubled; "always" does not close
+ *   12:35-13:00 on early closes), when US Limit Up-Limit Down bands are doubled; "always" does not close.
+ *   Any other value reads closed, so a misspelled name or an older install fails closed, not open
  * - maxStateAgeSeconds: the oldest halts feed that still counts as current
  */
 export interface GuardPolicy {
@@ -16,7 +17,7 @@ export interface GuardPolicy {
     haltSync: boolean;
     issuerSync?: boolean;
     badPrintBandBps: number;
-    session: "regular-hours" | "always" | string;
+    session: "regular-hours" | "core-hours" | "always";
     maxStateAgeSeconds: number;
   };
 }
@@ -219,9 +220,13 @@ export function evaluateMarket(s: GuardPolicy, input: MarketInput): MarketState 
       };
     }
   }
-  if (s.market.session === "regular-hours" || s.market.session === "core-hours") {
-    const session = regularSession(input.now, s.market.session === "core-hours");
+  const name: string = s.market.session;
+  if (name === "regular-hours" || name === "core-hours") {
+    const session = regularSession(input.now, name === "core-hours");
     if (!session.open) return { halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: session.detail };
+  } else if (name !== "always") {
+    // a policy read from JSON can carry any string: an unknown session is not evidence the market is open
+    return { halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: `unknown session ${JSON.stringify(name)}` };
   }
   return { halted: false, reason: MARKET_REASON.NONE, resumeAfter: 0, detail: "open" };
 }

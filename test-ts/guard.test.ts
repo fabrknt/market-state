@@ -146,6 +146,14 @@ describe("guard", () => {
     // regular-hours keeps the edges open
     expect(regularSession(easternToUnix("11/09/2026", "09:31:00")).open).toBe(true);
   });
+  it("an unknown session name reads closed", () => {
+    // fabrknt/market-state#1: before v0.4.0 a name it did not know (a typo, or "core-hours" on v0.2.0) read open
+    for (const session of ["core_hours", "regular", ""]) {
+      const odd = { ...policy, market: { ...policy.market, session } } as unknown as typeof policy;
+      const r = evaluateMarket(odd, { symbol: "NVDA", now: easternToUnix("11/09/2026", "12:00:00"), halts: [], ...OK_PX });
+      expect(r).toEqual({ halted: true, reason: MARKET_REASON.SESSION_CLOSED, resumeAfter: 0, detail: `unknown session ${JSON.stringify(session)}` });
+    }
+  });
   it("a year the calendar does not cover reads closed", () => {
     const mondayNoon2029 = easternToUnix("01/08/2029", "12:00:00");
     expect(regularSession(mondayNoon2029)).toEqual({ open: false, detail: "no exchange calendar for 2029" });

@@ -64,7 +64,7 @@ open. A stopped updater only closes markets. Run the updater yourself, and show 
 
 ```sh
 forge test          # registry and requireOpen: 8 tests
-npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, sessions, DST: 12 tests
+npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, sessions, DST: 16 tests
 ```
 
 `fixtures/nasdaq-tradehalts.xml` is the live feed as captured on 2026-11-03.
@@ -79,12 +79,16 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
   read as open, and 11-27 as open until 16:00.
 - `v0.3.0`: the `core-hours` session (09:45-15:35 ET, 09:45-12:35 on early closes). Summon does not fill
   while LULD bands are doubled.
+- `v0.4.0`: a `session` name it does not know reads closed (`SESSION_CLOSED`, detail `unknown session "..."`),
+  and the type admits only `"regular-hours" | "core-hours" | "always"` (#1). Before, any other value meant no
+  session check, so the market read open around the clock. Found while using it in Summon: its `node_modules`
+  still held a v0.2.0 build, which did not know `core-hours`, and the market read open after the close.
 
 ## Used in
 
 - Summon (`psyto/summon-stocks`, private for now): backer-funded rounds for tokenized stocks on Base
   Sepolia. Every auction start and fill calls `requireOpen` for the stock, and its tests cover a halted
-  stock, a quiet guard and a fill before the resumption time. Pins `v0.1.0`.
+  stock, a quiet guard and a fill before the resumption time. Pins `v0.4.0`.
 - The private project this was extracted from now depends on `v0.1.0` as well, instead of keeping its
   own copy.
 
