@@ -26,7 +26,7 @@ usable symbol, and a missing publication date. A row whose times cannot be read 
 Solidity (Foundry):
 
 ```sh
-forge install fabrknt/market-state@v0.1.0
+forge install fabrknt/market-state@v0.4.0
 ```
 
 ```solidity
@@ -39,13 +39,17 @@ MarketStateCheck.requireOpen(registry, token, 300); // reverts MarketHalted / Ma
 TypeScript (the guard):
 
 ```sh
-npm install github:fabrknt/market-state#v0.1.0
+npm install github:fabrknt/market-state#v0.4.0
 ```
 
-```ts
-import { NASDAQ_HALTS_URL, parseNasdaqFeed, marketStateFor, GUARD_FEED_MAX_AGE_SECONDS } from "@fabrknt/market-state";
+To upgrade, install the new tag by name again (`npm install github:fabrknt/market-state#v0.4.0`). Editing
+the tag in package.json and running a bare `npm install` can keep the old commit in package-lock.json and
+node_modules. Check `node_modules/@fabrknt/market-state/package.json` for the version you expect.
 
-const policy = { market: { haltSync: true, badPrintBandBps: 0, session: "regular-hours", maxStateAgeSeconds: 300 } };
+```ts
+import { NASDAQ_HALTS_URL, parseNasdaqFeed, marketStateFor, GUARD_FEED_MAX_AGE_SECONDS, type GuardPolicy } from "@fabrknt/market-state";
+
+const policy: GuardPolicy = { market: { haltSync: true, badPrintBandBps: 0, session: "regular-hours", maxStateAgeSeconds: 300 } };
 const feed = parseNasdaqFeed(await (await fetch(NASDAQ_HALTS_URL)).text());
 const now = Math.floor(Date.now() / 1000);
 const s = marketStateFor(policy, "GME", now, { halts: feed.halts, fetchedAt: feed.publishedAt }, GUARD_FEED_MAX_AGE_SECONDS);
