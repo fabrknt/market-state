@@ -67,7 +67,7 @@ open. A stopped updater only closes markets. Run the updater yourself, and show 
 ## Tests
 
 ```sh
-forge test          # registry and requireOpen: 8 tests
+forge test          # registry and requireOpen: 9 tests
 npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, sessions, DST: 16 tests
 ```
 
@@ -87,6 +87,9 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
   and the type admits only `"regular-hours" | "core-hours" | "always"` (#1). Before, any other value meant no
   session check, so the market read open around the clock. Found while using it in Summon: its `node_modules`
   still held a v0.2.0 build, which did not know `core-hours`, and the market read open after the close.
+- `v0.4.1` (unreleased): `setState` emits `MarketStateChanged` only when the stored state changes. With
+  `halted = false` and a non-zero reason, the reason is stored as `NONE` but was compared as sent, so every
+  call emitted.
 
 ## Used in
 

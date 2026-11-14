@@ -61,9 +61,12 @@ contract MarketStateRegistry {
     ///         machine-readable halt notice for participants.
     function setState(address token, bool halted, uint8 reason, uint64 resumeAfter) public onlyUpdater {
         State storage s = _states[token];
-        bool changed = s.halted != halted || s.reason != reason || s.resumeAfter != resumeAfter;
+        // a reason is kept only while halted; compare what will be stored, or a non-zero reason with
+        // halted=false would read as a change on every call
+        uint8 stored = halted ? reason : REASON_NONE;
+        bool changed = s.halted != halted || s.reason != stored || s.resumeAfter != resumeAfter;
         s.halted = halted;
-        s.reason = halted ? reason : REASON_NONE;
+        s.reason = stored;
         s.resumeAfter = resumeAfter;
         s.updatedAt = uint64(block.timestamp);
         if (changed) emit MarketStateChanged(token, halted, s.reason, resumeAfter);

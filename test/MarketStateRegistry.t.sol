@@ -100,4 +100,15 @@ contract MarketStateRegistryTest is Test {
         vm.stopPrank();
         assertEq(vm.getRecordedLogs().length, 1);
     }
+
+    /// A reason sent with halted=false is stored as NONE, so sending it again is not a change.
+    function test_emitsOnlyOnChangeWithReasonWhileOpen() public {
+        vm.startPrank(guard);
+        reg.setState(token, true, 1, 0);
+        vm.recordLogs();
+        reg.setState(token, false, 2, 0);
+        reg.setState(token, false, 2, 0);
+        vm.stopPrank();
+        assertEq(vm.getRecordedLogs().length, 1);
+    }
 }
