@@ -26,7 +26,7 @@ usable symbol, and a missing publication date. A row whose times cannot be read 
 Solidity (Foundry):
 
 ```sh
-forge install fabrknt/market-state@v0.4.0
+forge install fabrknt/market-state@v0.4.1
 ```
 
 ```solidity
@@ -39,10 +39,10 @@ MarketStateCheck.requireOpen(registry, token, 300); // reverts MarketHalted / Ma
 TypeScript (the guard):
 
 ```sh
-npm install github:fabrknt/market-state#v0.4.0
+npm install github:fabrknt/market-state#v0.4.1
 ```
 
-To upgrade, install the new tag by name again (`npm install github:fabrknt/market-state#v0.4.0`). Editing
+To upgrade, install the new tag by name again (`npm install github:fabrknt/market-state#v0.4.1`). Editing
 the tag in package.json and running a bare `npm install` can keep the old commit in package-lock.json and
 node_modules. Check `node_modules/@fabrknt/market-state/package.json` for the version you expect.
 
@@ -87,7 +87,7 @@ npm install && npm test   # feed parsing, halts, circuit breakers, bad prints, s
   and the type admits only `"regular-hours" | "core-hours" | "always"` (#1). Before, any other value meant no
   session check, so the market read open around the clock. Found while using it in Summon: its `node_modules`
   still held a v0.2.0 build, which did not know `core-hours`, and the market read open after the close.
-- `v0.4.1` (unreleased): `setState` emits `MarketStateChanged` only when the stored state changes. With
+- `v0.4.1`: `setState` emits `MarketStateChanged` only when the stored state changes. With
   `halted = false` and a non-zero reason, the reason is stored as `NONE` but was compared as sent, so every
   call emitted.
 
